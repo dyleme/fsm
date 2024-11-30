@@ -176,7 +176,6 @@ func (r *CommentsParser) extractTransitionData(lines []string) (TransitionData, 
 	}
 
 	td := TransitionData{
-		States: statesSlice,
 		Events: events,
 	}
 
@@ -184,7 +183,6 @@ func (r *CommentsParser) extractTransitionData(lines []string) (TransitionData, 
 }
 
 type TransitionData struct {
-	States []string
 	Events []lineData
 }
 

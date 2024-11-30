@@ -15,11 +15,12 @@ func (error ConflictingNamesError) Error() string {
 }
 
 func BetterNaming(fd fileData) (data, error) {
-	states := make([]state, 0, len(fd.td.States))
 	events := make(map[string]event)
+	states := make(map[string]state)
 
-	for _, s := range fd.td.States {
-		states = append(states, state{Name: strings.Title(s), Value: s})
+	for _, s := range fd.td.Events {
+		states[s.Src] = state{Name: strings.Title(s.Src), Value: s.Src}
+		states[s.Dst] = state{Name: strings.Title(s.Dst), Value: s.Dst}
 	}
 
 	for _, le := range fd.td.Events {
@@ -68,19 +69,24 @@ func BetterNaming(fd fileData) (data, error) {
 		eventSlice = append(eventSlice, e)
 	}
 
+	stateSlice := make([]state, 0, len(states))
+	for _, s := range states {
+		stateSlice = append(stateSlice, s)
+	}
+
 	sort.Slice(eventSlice, func(i, j int) bool {
 		return eventSlice[i].Name < eventSlice[j].Name
 	})
 
-	sort.Slice(states, func(i, j int) bool {
-		return states[i].Name < states[j].Name
+	sort.Slice(stateSlice, func(i, j int) bool {
+		return stateSlice[i].Name < stateSlice[j].Name
 	})
 
 	d := data{
 		PkgName:        fd.packageName,
-		States:         states,
+		States:         stateSlice,
 		Events:         eventSlice,
-		PossibleEvents: possibleEvents(states, eventSlice),
+		PossibleEvents: possibleEvents(stateSlice, eventSlice),
 		GenDynamic:     false,
 		GenType:        false,
 	}

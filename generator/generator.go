@@ -2,6 +2,7 @@ package generator
 
 import (
 	"bytes"
+	"fmt"
 	"go/format"
 	"io"
 	"strings"
@@ -55,13 +56,13 @@ func Gen(w io.Writer, d data) error {
 	}
 	tm, err := template.New("fsm").Funcs(funcs).Parse(s)
 	if err != nil {
-		return err
+		return fmt.Errorf("parsing template: %w", err)
 	}
 
 	var buff bytes.Buffer
 	err = tm.Execute(&buff, d)
 	if err != nil {
-		return err
+		return fmt.Errorf("executing template: %w", err)
 	}
 
 	code, err := io.ReadAll(&buff)
@@ -71,7 +72,7 @@ func Gen(w io.Writer, d data) error {
 
 	code, err = format.Source(code)
 	if err != nil {
-		return err
+		return fmt.Errorf("formatting code: %w", err)
 	}
 
 	_, err = w.Write(code)

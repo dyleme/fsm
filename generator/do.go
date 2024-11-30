@@ -1,6 +1,9 @@
 package generator
 
-import "os"
+import (
+	"fmt"
+	"os"
+)
 
 type Parser interface {
 	Parse() (data, error)
@@ -17,7 +20,7 @@ func NewFSMGenerator(parser Parser) *FSMGenerator {
 func (g *FSMGenerator) Do() error {
 	data, err := g.parser.Parse()
 	if err != nil {
-		return err
+		return fmt.Errorf("parse: %w", err)
 	}
 
 	file, err := os.Create("fsm_gen.go")
@@ -25,5 +28,10 @@ func (g *FSMGenerator) Do() error {
 		return err
 	}
 
-	return Gen(file, data)
+	err = Gen(file, data)
+	if err != nil {
+		return fmt.Errorf("gen: %w", err)
+	}
+
+	return nil
 }
