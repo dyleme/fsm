@@ -1,0 +1,155 @@
+package {{.PkgName}}
+
+import (
+	"slices"
+	"fmt"
+)
+
+{{if .GenType}}
+type State string
+{{end }}
+
+const ({{range .States}}
+	{{.Name}} State = "{{.Value}}"{{end}}
+)
+
+var allStates = map[State]struct{}{ {{range .States}}
+	{{.Name}}: {}, {{end}}
+}
+
+type event struct {
+	Name string
+	src  []State
+	dst  State
+}
+
+var ({{range .Events}}
+	{{.Name}} = &event{ 
+		Name: "{{.Value}}",
+		src:  []State{ {{range .Src}}
+			{{.Name}},{{end}} 
+		},
+		dst:  {{.Dst.Name}},
+	}
+{{end}}
+)
+
+var possibleEvents = map[State][]*event{ {{range $state, $events := .PossibleEvents}}
+	{{$state.Name}}: { {{range $events}}
+		{{.Name}},{{end}}
+	},{{end}}
+}
+
+// UnknownEventError is errror that provided state not exists.
+type UnknownStateError struct {
+	State string
+}
+
+func (e UnknownStateError) Error() string {
+	return fmt.Sprintf("Unknown state: '%s'", e.State)
+}
+
+// ProhibittedEventError is error that signals that Event can't be done from State.
+type ProhibittedEventError struct {
+	State string
+	Event string
+}
+
+func (e ProhibittedEventError) Error() string {
+	return fmt.Sprintf("Prohibitted event '%s' in state '%s'", e.Event, e.State)
+}
+{{range .Events}}
+// Can{{.Value}} returns value if state can be change to the {{.Value}}.
+func Can{{.Value}}(state State) bool {
+	return slices.Contains(possibleEvents[state], {{.Name}})
+}
+
+// {{.Value}} returns new state if it can be reached or err otherise.
+func {{.Value}}(state State) (State, error) {
+	events, ok := possibleEvents[state]
+	if !ok {
+		return state, UnknownStateError{string(state)}
+	}
+	
+	if slices.Contains(events, {{.Name}}) {
+		return {{.Name}}.dst, nil
+	}
+	
+	return state, ProhibittedEventError{string(state), {{.Name}}.Name}
+}{{end}}
+
+// Parse returns corresponding state to the provided string,
+// or error eitherise.
+func Parse(state string) (State, error) {
+	if _, ok := allStates[State(state)]; !ok {
+		return "", UnknownStateError{state}
+	}
+	
+	return State(state), nil
+}
+
+// IsLastState return true if no futher transitions could be done from provided state.
+func IsLastState(state State) bool {
+	return len(possibleEvents[state]) == 0
+}
+{{if .GenDynamic }}
+
+var allEvents = map[*event]struct{}{ {{range .Events}}
+	{{.Name}} : {},{{end}}
+}
+type UnknownEventError struct {
+	Event string
+}
+
+func (e UnknownEventError) Error() string {
+	return fmt.Sprintf("Unknown event: '%s'", e.Event)
+}
+
+// Transitions returns all possible events from this state.
+func Transitions(state State) []*event {
+	return possibleEvents[state]
+}
+
+// Can checks if event is possible from the state.
+func Can(state State, event *event) (bool, error) {
+	if _, ok := allEvents[event]; !ok {
+		return false, UnknownEventError{event.Name}
+	}
+
+	events, ok := possibleEvents[state]
+	if !ok {
+		return false, UnknownStateError{string(state)}
+	}
+
+	return slices.Contains(events, event), nil
+}
+
+// ParseEvent returns event, if such string event exists, or error eitherise.
+func ParseEvent(event string) (*event, error) {
+	switch event { {{range .Events}}
+	case {{.Name}}.Name: 
+		return {{.Name}}, nil{{end}}
+	default:
+		return nil,  UnknownEventError{event}
+	}
+}
+
+// Event apply event to the state.
+// If it is possible returns new state, or old state and error otherise.
+func Event(state State, event *event) (State, error) {
+	if _, ok := allEvents[event]; !ok {
+		return state, UnknownEventError{event.Name}
+	}
+
+	events, ok := possibleEvents[state]
+	if !ok {
+		return state, UnknownStateError{string(state)}
+	}
+
+	if slices.Contains(events, event) {
+		return event.dst, nil
+	}
+	
+	return state, ProhibittedEventError{string(state), event.Name}
+}
+{{end}}
