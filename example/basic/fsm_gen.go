@@ -1,4 +1,4 @@
-package fsm
+package basic
 
 import (
 	"fmt"
@@ -8,13 +8,13 @@ import (
 const (
 	Crash  State = "crash"
 	Moving State = "moving"
-	Still  State = "still"
+	Stay   State = "stay"
 )
 
 var allStates = map[State]struct{}{
 	Crash:  {},
 	Moving: {},
-	Still:  {},
+	Stay:   {},
 }
 
 type event struct {
@@ -24,23 +24,6 @@ type event struct {
 }
 
 var (
-	cEvent = &event{
-		Name: "C",
-		src: []State{
-			Moving,
-		},
-		dst: Still,
-	}
-
-	moveEvent = &event{
-		Name: "Move",
-		src: []State{
-			Still,
-			Moving,
-		},
-		dst: Moving,
-	}
-
 	toCrashEvent = &event{
 		Name: "ToCrash",
 		src: []State{
@@ -48,17 +31,34 @@ var (
 		},
 		dst: Crash,
 	}
+
+	toMovingEvent = &event{
+		Name: "ToMoving",
+		src: []State{
+			Stay,
+			Moving,
+		},
+		dst: Moving,
+	}
+
+	toStayEvent = &event{
+		Name: "ToStay",
+		src: []State{
+			Moving,
+		},
+		dst: Stay,
+	}
 )
 
 var possibleEvents = map[State][]*event{
 	Crash: {},
 	Moving: {
-		cEvent,
-		moveEvent,
 		toCrashEvent,
+		toMovingEvent,
+		toStayEvent,
 	},
-	Still: {
-		moveEvent,
+	Stay: {
+		toMovingEvent,
 	},
 }
 
@@ -81,44 +81,6 @@ func (e ProhibittedEventError) Error() string {
 	return fmt.Sprintf("Prohibitted event '%s' in state '%s'", e.Event, e.State)
 }
 
-// CanC returns value if state can be change to the C.
-func CanC(state State) bool {
-	return slices.Contains(possibleEvents[state], cEvent)
-}
-
-// C returns new state if it can be reached or err otherise.
-func C(state State) (State, error) {
-	events, ok := possibleEvents[state]
-	if !ok {
-		return state, UnknownStateError{string(state)}
-	}
-
-	if slices.Contains(events, cEvent) {
-		return cEvent.dst, nil
-	}
-
-	return state, ProhibittedEventError{string(state), cEvent.Name}
-}
-
-// CanMove returns value if state can be change to the Move.
-func CanMove(state State) bool {
-	return slices.Contains(possibleEvents[state], moveEvent)
-}
-
-// Move returns new state if it can be reached or err otherise.
-func Move(state State) (State, error) {
-	events, ok := possibleEvents[state]
-	if !ok {
-		return state, UnknownStateError{string(state)}
-	}
-
-	if slices.Contains(events, moveEvent) {
-		return moveEvent.dst, nil
-	}
-
-	return state, ProhibittedEventError{string(state), moveEvent.Name}
-}
-
 // CanToCrash returns value if state can be change to the ToCrash.
 func CanToCrash(state State) bool {
 	return slices.Contains(possibleEvents[state], toCrashEvent)
@@ -136,6 +98,44 @@ func ToCrash(state State) (State, error) {
 	}
 
 	return state, ProhibittedEventError{string(state), toCrashEvent.Name}
+}
+
+// CanToMoving returns value if state can be change to the ToMoving.
+func CanToMoving(state State) bool {
+	return slices.Contains(possibleEvents[state], toMovingEvent)
+}
+
+// ToMoving returns new state if it can be reached or err otherise.
+func ToMoving(state State) (State, error) {
+	events, ok := possibleEvents[state]
+	if !ok {
+		return state, UnknownStateError{string(state)}
+	}
+
+	if slices.Contains(events, toMovingEvent) {
+		return toMovingEvent.dst, nil
+	}
+
+	return state, ProhibittedEventError{string(state), toMovingEvent.Name}
+}
+
+// CanToStay returns value if state can be change to the ToStay.
+func CanToStay(state State) bool {
+	return slices.Contains(possibleEvents[state], toStayEvent)
+}
+
+// ToStay returns new state if it can be reached or err otherise.
+func ToStay(state State) (State, error) {
+	events, ok := possibleEvents[state]
+	if !ok {
+		return state, UnknownStateError{string(state)}
+	}
+
+	if slices.Contains(events, toStayEvent) {
+		return toStayEvent.dst, nil
+	}
+
+	return state, ProhibittedEventError{string(state), toStayEvent.Name}
 }
 
 // Parse returns corresponding state to the provided string,

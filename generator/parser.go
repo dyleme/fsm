@@ -5,7 +5,7 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
-	"log"
+	"io"
 	"strings"
 )
 
@@ -54,7 +54,10 @@ type RealParser struct {
 }
 
 func (r *RealParser) Parse() (data, error) {
-	fd := r.CommentParser.Parse()
+	fd, err := r.CommentParser.Parse()
+	if err != nil {
+		return data{}, fmt.Errorf("parsing: %w", err)
+	}
 
 	return BetterNaming(fd)
 }
@@ -68,12 +71,14 @@ const (
 
 type CommentsParser struct {
 	stateTypeName string
+	fileName      string
 	lineParser    lineParser
+	src           io.Reader
 }
 
-func NewCommentsParser(typeName string, t docType) (*CommentsParser, error) {
+func NewCommentsParser(src io.Reader, fileName string, typeName string, t string) (*CommentsParser, error) {
 	var cp lineParser
-	switch t {
+	switch docType(t) {
 	case mermaid:
 		cp = &mermaidParser{}
 	case graphviz:
@@ -85,6 +90,8 @@ func NewCommentsParser(typeName string, t docType) (*CommentsParser, error) {
 	parser := &CommentsParser{
 		stateTypeName: typeName,
 		lineParser:    cp,
+		fileName:      fileName,
+		src:           src,
 	}
 
 	return parser, nil
@@ -95,11 +102,11 @@ type fileData struct {
 	td          TransitionData
 }
 
-func (r *CommentsParser) Parse() fileData {
+func (r *CommentsParser) Parse() (fileData, error) {
 	fset := token.NewFileSet()
-	f, err := parser.ParseFile(fset, "fsm.go", nil, parser.ParseComments)
+	f, err := parser.ParseFile(fset, "", r.src, parser.ParseComments)
 	if err != nil {
-		log.Fatal(err)
+		return fileData{}, err
 	}
 
 	var td TransitionData
@@ -122,7 +129,7 @@ func (r *CommentsParser) Parse() fileData {
 
 				td, err = r.extractTransitionData(comments)
 				if err != nil {
-					log.Fatal(err)
+					return fileData{}, err
 				}
 				break
 			}
@@ -132,7 +139,7 @@ func (r *CommentsParser) Parse() fileData {
 	return fileData{
 		packageName: f.Name.Name,
 		td:          td,
-	}
+	}, nil
 }
 
 func commentText(cg *ast.CommentGroup) []string {

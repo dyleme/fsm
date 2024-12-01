@@ -35,3 +35,20 @@ func (g *FSMGenerator) Do() error {
 
 	return nil
 }
+
+type InjectedFlags struct {
+	PkgName    string
+	GenType    bool
+	GenDynamic bool
+}
+
+func InjectFlags(d data, flags InjectedFlags) data {
+	if flags.PkgName != "" {
+		d.PkgName = flags.PkgName
+	}
+
+	d.GenType = flags.GenType
+	d.GenDynamic = flags.GenDynamic
+
+	return d
+}
